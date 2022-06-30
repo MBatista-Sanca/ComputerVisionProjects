@@ -1,3 +1,4 @@
+from typing import final
 import numpy as np
 import cv2 as cv
 import os
@@ -292,7 +293,7 @@ def optimize_pose(kp1, kp2, pos_1, pos_2, P_l, P_r, max_iter=100):
 def main():
 
     #Load Image and CalibrationParameters
-    Path = r"C:\Users\Marcos Batista\Desktop\Marcos\ProcessosSeletivos\Daedalus\Atividade2"
+    Path = r"C:\Users\Marcos Batista\Documents\git\ComputerVisionProjects\VisualOdometry_Stereo"
     LeftImgs, RightImgs = readImages(Path)
     _l, P_l, K_r, P_r = load_calib(Path + '\calib.txt')  
 
@@ -307,15 +308,9 @@ def main():
 
     #Track and Triangulate Features in order to identify this point in the world (3D)
     tracked_kps = []
+    list_pos = np.array([[0,0,0]])
     finalpos = np.zeros(3)
     
-    hl, = plt.plot([], [])
-    plt.show()
-
-    def update_line(hl, new_data):
-        hl.set_xdata(np.append(hl.get_xdata(), new_data))
-        hl.set_ydata(np.append(hl.get_ydata(), new_data))
-        plt.draw()
 
     for i in range(len(keypoints)-1):
         tracked_kp1_l, tracked_kp2_l = track_keypoints(LeftImgs[i], LeftImgs[i+1], keypoints[i], lk_params)
@@ -332,26 +327,20 @@ def main():
 
         R, t = optimize_pose(kp1_l, kp2_l, pos_1, pos_2, P_l, P_r, max_iter=100)
         finalpos = np.matmul(finalpos.T, R) + t
+        np.concatenate(list_pos, finalpos)
 
-        update_line(hl, (finalpos[0], finalpos[2]))
         print("Final Pos: ", finalpos)
-        #plt.show()
-        # Draw the tracks
-        mask = np.zeros_like(LeftImgs[i])
-        for j, (new, old) in enumerate(zip(kp2_r, kp1_r)):
-            a, b = new.ravel()
-            c, d = old.ravel()
-            mask = cv.line(mask, (int(a), int(b)), (int(c), int(d)), (255,255,255), 1)
-            frame = cv.circle(RightImgs[i].copy(), (int(a), int(b)), 5, (255,255,255), -1)
-        img = cv.add(frame, mask)
+
         #cv.imshow("img",img)
         #cv.waitKey(0)
+    fig = plt.figure()
 
-    #Calculate Disparity Maps
-    DisparityMaps = calculateDisparityMaps(LeftImgs, RightImgs)
-    for i in range(len(DisparityMaps)):
-        plt.imshow(DisparityMaps[i], "gray")
-        plt.show()
+    plt.plot(-list_pos[:,0], list_pos[:,2], 'o')
+    # # Data for three-dimensional scattered points
+    # ax.scatter3D(list_pos[:,2], list_pos[:,0], list_pos[:,1], cmap='Greens')
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.show()
+
 
 if __name__ == "__main__":
     main()
